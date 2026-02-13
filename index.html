@@ -4,11 +4,58 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BanG Dream! 华容道</title>
+    <style>
+      html.assets-pending body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+        background:
+          radial-gradient(circle at 12% 14%, #fff7a8 0%, transparent 30%),
+          radial-gradient(circle at 88% 16%, #8be7ff 0%, transparent 32%),
+          radial-gradient(circle at 26% 88%, #ff9ec8 0%, transparent 33%),
+          radial-gradient(circle at 78% 82%, #ffcf6d 0%, transparent 30%),
+          linear-gradient(165deg, #ffeef8 0%, #f1efff 48%, #e8fbff 100%);
+      }
+
+      html.assets-pending .app {
+        visibility: hidden;
+      }
+
+      #bootSplash {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #4a1648;
+        letter-spacing: 0.08em;
+        font-weight: 600;
+        background: transparent;
+        z-index: 9999;
+        transition: opacity 0.14s ease;
+      }
+
+      html:not(.assets-pending) #bootSplash {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
     <script>
       (() => {
+        const root = document.documentElement;
+        root.classList.add("assets-pending");
+
         const APP_CONFIG_URL = "data/app-config.json";
         const STYLE_URL = "src/ui/styles.css";
         const ENTRY_URL = "src/main.js";
+        let revealed = false;
+        const revealApp = () => {
+          if (revealed) {
+            return;
+          }
+          revealed = true;
+          root.classList.remove("assets-pending");
+        };
+        const revealTimer = window.setTimeout(revealApp, 3000);
 
         const sanitizeToken = (value) =>
           String(value ?? "")
@@ -21,6 +68,14 @@
           const style = document.createElement("link");
           style.rel = "stylesheet";
           style.href = `${STYLE_URL}?v=${encodeURIComponent(token)}`;
+          style.addEventListener("load", () => {
+            window.clearTimeout(revealTimer);
+            revealApp();
+          });
+          style.addEventListener("error", () => {
+            window.clearTimeout(revealTimer);
+            revealApp();
+          });
           document.head.append(style);
 
           const entry = document.createElement("script");
@@ -44,6 +99,7 @@
     </script>
   </head>
   <body>
+    <div id="bootSplash" aria-live="polite">正在加载...</div>
     <main class="app">
       <header class="topbar">
         <div>
@@ -66,8 +122,8 @@
             <option value="origin">原位目标</option>
             <option value="swap_michelle">与米歇尔换位（保留块大小）</option>
           </select>
-          <label for="fitMode">棋盘拟合</label>
-          <select id="fitMode">
+          <label for="fitMode" hidden>棋盘拟合</label>
+          <select id="fitMode" hidden>
             <option value="balanced">自然拟合</option>
             <option value="strict">严格比例</option>
           </select>
