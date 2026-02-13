@@ -44,6 +44,14 @@ body {
   align-items: flex-start;
 }
 
+.app-version {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(74, 29, 75, 0.72);
+}
+
 h1 {
   margin: 0;
   font-size: clamp(1.6rem, 4vw, 2rem);
@@ -68,6 +76,11 @@ h1::after {
 .topbar p {
   margin: 6px 0 0;
   opacity: 0.85;
+}
+
+.topbar .app-version {
+  margin: 0 0 4px;
+  opacity: 1;
 }
 
 .stats {
@@ -237,6 +250,72 @@ button:hover {
 
 .win-panel p {
   margin: 8px 0 0;
+}
+
+.notice-bar {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2a9c6;
+  background: linear-gradient(180deg, #fff6fb 0%, #ffeaf5 100%);
+  box-shadow: 0 6px 14px rgba(255, 91, 164, 0.12);
+}
+
+.notice-tag {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 28, 105, 0.25);
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 700;
+  color: #7a2c74;
+}
+
+.notice-text {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #4a1d4b;
+}
+
+.notice-bar[data-level="success"] {
+  border-color: #88d7b9;
+  background: linear-gradient(180deg, #f2fffa 0%, #e7fff4 100%);
+}
+
+.notice-bar[data-level="warn"] {
+  border-color: #f2b6b0;
+  background: linear-gradient(180deg, #fff7f7 0%, #ffecec 100%);
+}
+
+.notice-bar[data-custom-theme="true"] {
+  border-color: var(--notice-theme-border);
+  background: linear-gradient(180deg, var(--notice-theme-bg-1) 0%, var(--notice-theme-bg-2) 100%);
+}
+
+.notice-bar[data-custom-theme="true"] .notice-text {
+  color: var(--notice-theme-text);
+}
+
+.notice-bar[data-custom-theme="true"] .notice-tag {
+  border-color: var(--notice-theme-tag-border);
+  color: var(--notice-theme-tag-text);
+}
+
+.app-footer {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px 2px;
+  font-size: 12px;
+  color: rgba(63, 21, 71, 0.7);
 }
 
 .hidden {

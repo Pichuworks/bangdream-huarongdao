@@ -1,0 +1,29 @@
+{
+  "refreshIntervalSec": 60,
+  "rotateIntervalSec": 10,
+  "notices": [
+    {
+      "text": "【🎂 02-14】祥子小姐生日快乐！情人节出生的大小姐值得被爱！",
+      "type": "生日",
+      "level": "info",
+      "themeColor": "#7799CC",
+      "annualStart": "02-13",
+      "annualEnd": "02-15"
+    },
+    {
+      "text": "祝大家春节玉快，阖家欢洛！",
+      "type": "节日",
+      "level": "warn",
+      "themeColor": "#E60012",
+      "lunarAnnualStart": "12-20",
+      "lunarAnnualEnd": "01-07"
+    },
+    {
+      "text": "【🎂 02-22】乐奈生日快乐！猫之日快乐！今天要吃抹茶芭菲！",
+      "type": "生日",
+      "level": "success",
+      "themeColor": "#77DD77",
+      "annualDate": "02-22"
+    }
+  ]
+}

@@ -10,6 +10,7 @@
     <main class="app">
       <header class="topbar">
         <div>
+          <p id="appVersion" class="app-version">v0.0.0</p>
           <h1>BanG Dream! 华容道</h1>
           <p id="goalText">目标：将目标角色移动到底部中间出口</p>
         </div>
@@ -54,6 +55,17 @@
         <h2>通关</h2>
         <p id="winText">目标角色已到出口。</p>
       </section>
+
+      <section id="noticeBar" class="notice-bar" aria-live="polite">
+        <span class="notice-tag">系统</span>
+        <span id="noticeText" class="notice-text">正在加载通知...</span>
+      </section>
+
+      <footer class="app-footer" aria-label="应用信息">
+        <span id="footerDev">Developed by PichuTheLolitaNeko</span>
+        <span id="footerPowered">Powered by gpt-5.3-codex (reasoning high, summaries auto)</span>
+        <span id="footerUpdated">Last update: 2026-02-13</span>
+      </footer>
     </main>
 
     <script type="module" src="src/main.js"></script>

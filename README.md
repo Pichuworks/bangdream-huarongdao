@@ -14,6 +14,7 @@
   - `严格比例`（更严格按图片比例）
 - 自动求解（BFS 最短步，经典模式）。
 - 角色名显示开关、步数统计、计时、重开与重置计时。
+- 底部通知栏（从配置文件读取，支持定时刷新与轮播）。
 
 ## 在线规则
 - 出口固定为底部中间 `2x1`，不随目标角色变化。
@@ -51,7 +52,34 @@ npx serve . -l 5173
 - Build Command 留空，Output Directory 设为仓库根目录（或默认静态检测）。
 
 ## 配置说明
-### 1) 角色名映射
+### 1) 应用配置
+文件：`data/app-config.json`
+
+- `version`：页面标题上方显示的版本号（例如 `0.0.2`）。
+- `license`：项目许可证标识（当前 `GPL-2.0-only`）。
+- `footer`：页面最下方信息栏配置。
+  - `developer`：开发者名称。
+  - `model`：模型版本号。
+  - `reasoning`：推理等级（如 `high`）。
+  - `summaries`：摘要模式（如 `auto`）。
+  - `lastUpdated`：最后更新时间（`YYYY-MM-DD`）。
+
+示例：
+```json
+{
+  "version": "0.0.2",
+  "license": "GPL-2.0-only",
+  "footer": {
+    "developer": "PichuTheLolitaNeko",
+    "model": "gpt-5.3-codex",
+    "reasoning": "high",
+    "summaries": "auto",
+    "lastUpdated": "2026-02-13"
+  }
+}
+```
+
+### 2) 角色名映射
 文件：`data/image-role-map.json`
 
 - `showRoleNamesDefault`：是否默认显示棋子角色名。
@@ -67,7 +95,7 @@ npx serve . -l 5173
 }
 ```
 
-### 2) 棋子与图片绑定
+### 3) 棋子与图片绑定
 文件：`data/piece-layout.json`
 
 - `pieceImage`：`棋子ID -> 图片路径`。
@@ -77,20 +105,88 @@ npx serve . -l 5173
   - `1x2`：若麦/摩卡/有咲/伊芙（`zhangfei/zhaoyun/machao/huangzhong`）
   - `1x1`：其余角色（`soldier1-4`）
 
-### 3) 换位模板
+### 4) 换位模板
 文件：`src/config/swap_layouts.js`
 
 - 用于“与米歇尔换位（保留块大小）”模式。
 - 每个模板定义一个目标角色的初始可解布局。
 - 当前非米歇尔模板默认满足：底部中间 `2x1` 出口初始留空。
 
+### 5) 通知栏配置
+文件：`data/notice-config.json`
+
+- `refreshIntervalSec`：重新拉取配置的间隔秒数（默认 `60`）。
+- `rotateIntervalSec`：多条通知轮播间隔秒数（默认 `10`，用于重复事件轮换）。
+- `themeColor`：每条通知主题色（十六进制，如 `#7799CC`），会覆盖默认主题样式。
+- `notices`：通知列表，支持两种写法：
+  - 字符串：`"text"`（常驻通知）
+  - 对象：可配置时间窗口与年度日期规则
+    - `text`：通知文案
+    - `type`：通知类型（默认类型：`节日` / `生日` / `系统` / `自定义通知`）
+    - `level`：`info|success|warn`
+    - `themeColor`：通知主题色（`#RRGGBB` 或 `#RGB`）
+    - `startAt` / `endAt`：绝对生效时间（建议 ISO 8601）
+    - `annualDate`：每年固定日期（`MM-DD`）
+    - `annualDates`：每年多个固定日期（`["MM-DD", ...]`）
+    - `annualStart` / `annualEnd`：每年固定日期区间（`MM-DD`，含首尾）
+    - `lunarAnnualDate`：每年农历固定日期（`MM-DD`）
+    - `lunarAnnualDates`：每年多个农历固定日期（`["MM-DD", ...]`）
+    - `lunarAnnualStart` / `lunarAnnualEnd`：每年农历日期区间（`MM-DD`，含首尾，支持跨年）
+
+说明：
+- 历史示例配置已保留在 `data/notice-config.demo.json`。
+- 线上实际使用 `data/notice-config.json`。
+- 生日通知推荐文案格式：`【🎂 日期】内容`（例如 `【🎂 02-22】乐奈生日快乐！`）。
+
+示例：
+```json
+{
+  "refreshIntervalSec": 60,
+  "rotateIntervalSec": 10,
+  "notices": [
+    {
+      "text": "系统维护公告",
+      "type": "系统",
+      "level": "info",
+      "themeColor": "#7799CC",
+      "startAt": "2026-02-13T00:00:00+08:00",
+      "endAt": "2026-02-28T23:59:59+08:00"
+    },
+    {
+      "text": "【🎂 02-22】乐奈生日快乐！猫之日快乐！今天要吃抹茶芭菲！",
+      "type": "生日",
+      "level": "success",
+      "themeColor": "#77DD77",
+      "annualDate": "02-22"
+    },
+    {
+      "text": "每年 02-14 限定通知",
+      "type": "节日",
+      "level": "success",
+      "annualDate": "02-14"
+    },
+    {
+      "text": "春节通知（农历腊月20到正月初七）",
+      "type": "节日",
+      "level": "warn",
+      "themeColor": "#E60012",
+      "lunarAnnualStart": "12-20",
+      "lunarAnnualEnd": "01-07"
+    }
+  ]
+}
+```
+
 ## 项目结构
 ```text
 .
 ├─ index.html
 ├─ data/
+│  ├─ app-config.json
 │  ├─ image-role-map.json
-│  └─ piece-layout.json
+│  ├─ piece-layout.json
+│  ├─ notice-config.json
+│  └─ notice-config.demo.json
 ├─ img/
 ├─ src/
 │  ├─ main.js
@@ -117,6 +213,10 @@ node --check src/game/solver.js
 - 图片不显示：检查路径与大小写（当前使用大写扩展名 `.JPG`）。
 - 角色名不对：编辑 `data/image-role-map.json` 的 `roles`。
 - 换位模式想调布局：编辑 `src/config/swap_layouts.js`，并用自动求解验证可解性。
+
+## License
+- 本项目采用 `GPL-2.0-only` 协议发布。
+- 许可证全文见仓库根目录 `LICENSE`。
 
 ## 致谢
 - 素材版权归原作者/版权方所有，本仓库仅用于学习与交流。

@@ -6,11 +6,32 @@ import { solveKlotski } from "./game/solver.js";
 
 const ROLE_MAP_URL = "data/image-role-map.json";
 const PIECE_LAYOUT_URL = "data/piece-layout.json";
+const NOTICE_CONFIG_URL = "data/notice-config.json";
+const APP_CONFIG_URL = "data/app-config.json";
 
 const FIT_MODE_DEFAULT = "balanced";
 const TARGET_MODE_DEFAULT = "origin";
+const NOTICE_REFRESH_SEC_DEFAULT = 60;
+const NOTICE_ROTATE_SEC_DEFAULT = 10;
+const APP_VERSION_DEFAULT = "0.0.0";
+const APP_DEVELOPER_DEFAULT = "PichuTheLolitaNeko";
+const APP_MODEL_DEFAULT = "gpt-5.3-codex";
+const APP_REASONING_DEFAULT = "high";
+const APP_SUMMARIES_DEFAULT = "auto";
+const APP_LAST_UPDATED_DEFAULT = "2026-02-13";
+const LUNAR_NUMERIC_FORMAT = createLunarNumericFormatter();
+const NOTICE_TYPE_MAP = {
+  festival: "节日",
+  birthday: "生日",
+  system: "系统",
+  custom: "自定义通知",
+};
 
 const boardEl = document.querySelector("#board");
+const appVersionEl = document.querySelector("#appVersion");
+const footerDevEl = document.querySelector("#footerDev");
+const footerPoweredEl = document.querySelector("#footerPowered");
+const footerUpdatedEl = document.querySelector("#footerUpdated");
 const goalTextEl = document.querySelector("#goalText");
 const winTextEl = document.querySelector("#winText");
 const stepsEl = document.querySelector("#steps");
@@ -20,6 +41,9 @@ const restartBtnEl = document.querySelector("#restartBtn");
 const resetTimerBtnEl = document.querySelector("#resetTimerBtn");
 const autoSolveBtnEl = document.querySelector("#autoSolveBtn");
 const solveStatusEl = document.querySelector("#solveStatus");
+const noticeBarEl = document.querySelector("#noticeBar");
+const noticeTextEl = document.querySelector("#noticeText");
+const noticeTagEl = noticeBarEl?.querySelector(".notice-tag") ?? null;
 
 const targetCharEl = document.querySelector("#targetChar");
 const targetModeEl = document.querySelector("#targetMode");
@@ -28,6 +52,10 @@ const showNamesToggleEl = document.querySelector("#showNamesToggle");
 
 if (
   !boardEl ||
+  !appVersionEl ||
+  !footerDevEl ||
+  !footerPoweredEl ||
+  !footerUpdatedEl ||
   !goalTextEl ||
   !winTextEl ||
   !stepsEl ||
@@ -37,6 +65,9 @@ if (
   !resetTimerBtnEl ||
   !autoSolveBtnEl ||
   !solveStatusEl ||
+  !noticeBarEl ||
+  !noticeTextEl ||
+  !noticeTagEl ||
   !targetCharEl ||
   !targetModeEl ||
   !fitModeEl ||
@@ -52,6 +83,12 @@ let targetMode = TARGET_MODE_DEFAULT;
 let showRoleNames = false;
 let resolvedSetup = null;
 let targetImageOptions = [];
+let appVersion = APP_VERSION_DEFAULT;
+let appDeveloper = APP_DEVELOPER_DEFAULT;
+let appPoweredModel = APP_MODEL_DEFAULT;
+let appPoweredReasoning = APP_REASONING_DEFAULT;
+let appPoweredSummaries = APP_SUMMARIES_DEFAULT;
+let appLastUpdated = APP_LAST_UPDATED_DEFAULT;
 
 let roleMap = {};
 let basePieceLayout = {};
@@ -66,13 +103,49 @@ let isAutoSolving = false;
 let uiLocked = false;
 let fitToken = 0;
 let restartToken = 0;
+let noticeConfigItems = [];
+let activeNoticeItems = [];
+let noticeIndex = 0;
+let noticeRefreshSec = NOTICE_REFRESH_SEC_DEFAULT;
+let noticeRotateSec = NOTICE_ROTATE_SEC_DEFAULT;
+let noticeRefreshHandle = null;
+let noticeRotateHandle = null;
 
 const imageSizeCache = new Map();
 
 void boot();
 
+async function loadAppConfig() {
+  try {
+    const response = await fetch(APP_CONFIG_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    appVersion = normalizeVersion(data?.version);
+    const footer = typeof data?.footer === "object" && data.footer ? data.footer : {};
+    appDeveloper = normalizePlainText(footer.developer, APP_DEVELOPER_DEFAULT);
+    appPoweredModel = normalizePlainText(footer.model, APP_MODEL_DEFAULT);
+    appPoweredReasoning = normalizePlainText(footer.reasoning, APP_REASONING_DEFAULT);
+    appPoweredSummaries = normalizePlainText(footer.summaries, APP_SUMMARIES_DEFAULT);
+    appLastUpdated = normalizeDateString(footer.lastUpdated, APP_LAST_UPDATED_DEFAULT);
+  } catch (error) {
+    appVersion = APP_VERSION_DEFAULT;
+    appDeveloper = APP_DEVELOPER_DEFAULT;
+    appPoweredModel = APP_MODEL_DEFAULT;
+    appPoweredReasoning = APP_REASONING_DEFAULT;
+    appPoweredSummaries = APP_SUMMARIES_DEFAULT;
+    appLastUpdated = APP_LAST_UPDATED_DEFAULT;
+  }
+
+  renderAppMeta();
+}
+
 async function boot() {
+  await loadAppConfig();
   await loadExternalConfigs();
+  await initNoticeBar();
   initControls();
   await restartGame();
   updateStats();
@@ -84,6 +157,17 @@ async function boot() {
     }
     void fitBoardToImages();
   });
+}
+
+function renderAppMeta() {
+  if (!appVersionEl || !footerDevEl || !footerPoweredEl || !footerUpdatedEl) {
+    return;
+  }
+
+  appVersionEl.textContent = `v${appVersion}`;
+  footerDevEl.textContent = `Developed by ${appDeveloper}`;
+  footerPoweredEl.textContent = `Powered by ${appPoweredModel} (reasoning ${appPoweredReasoning}, summaries ${appPoweredSummaries})`;
+  footerUpdatedEl.textContent = `Last update: ${appLastUpdated}`;
 }
 
 async function loadExternalConfigs() {
@@ -125,6 +209,342 @@ async function loadExternalConfigs() {
   }
 
   targetImagePath = basePieceLayout.caocao || Object.keys(roleMap)[0] || "img/1.JPG";
+}
+
+async function initNoticeBar() {
+  await refreshNoticeConfig();
+  startNoticeTimers();
+}
+
+async function refreshNoticeConfig() {
+  try {
+    const response = await fetch(NOTICE_CONFIG_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const normalized = normalizeNoticeConfig(data);
+    noticeConfigItems = normalized.items;
+    noticeRefreshSec = normalized.refreshSec;
+    noticeRotateSec = normalized.rotateSec;
+    syncActiveNotices();
+    renderNotice();
+    startNoticeTimers();
+  } catch (error) {
+    if (!noticeConfigItems.length) {
+      noticeConfigItems = [
+        {
+          text: "通知配置读取失败，请检查 data/notice-config.json",
+          level: "warn",
+          typeKey: "system",
+          typeLabel: NOTICE_TYPE_MAP.system,
+          startAtMs: null,
+          endAtMs: null,
+          annualDates: [],
+          annualStart: null,
+          annualEnd: null,
+          lunarAnnualDates: [],
+          lunarAnnualStart: null,
+          lunarAnnualEnd: null,
+          themeColor: null,
+        },
+      ];
+      syncActiveNotices();
+      noticeIndex = 0;
+      renderNotice();
+    }
+  }
+}
+
+function normalizeNoticeConfig(data) {
+  const source = typeof data === "object" && data ? data : {};
+  const refreshSec = clampInteger(source.refreshIntervalSec, 10, 3600, NOTICE_REFRESH_SEC_DEFAULT);
+  const rotateSec = clampInteger(source.rotateIntervalSec, 2, 600, NOTICE_ROTATE_SEC_DEFAULT);
+  const rawItems = Array.isArray(source.notices) ? source.notices : [];
+  const items = rawItems
+    .map((item) => normalizeNoticeItem(item))
+    .filter((item) => Boolean(item));
+
+  if (!items.length) {
+    items.push({
+      text: "当前暂无通知。",
+      level: "info",
+      typeKey: "system",
+      typeLabel: NOTICE_TYPE_MAP.system,
+      startAtMs: null,
+      endAtMs: null,
+      annualDates: [],
+      annualStart: null,
+      annualEnd: null,
+      lunarAnnualDates: [],
+      lunarAnnualStart: null,
+      lunarAnnualEnd: null,
+      themeColor: null,
+    });
+  }
+
+  return { refreshSec, rotateSec, items };
+}
+
+function normalizeNoticeItem(item) {
+  if (typeof item === "string") {
+    const text = item.trim();
+    return text
+      ? {
+          text,
+          level: "info",
+          typeKey: "custom",
+          typeLabel: NOTICE_TYPE_MAP.custom,
+          startAtMs: null,
+          endAtMs: null,
+          annualDates: [],
+          annualStart: null,
+          annualEnd: null,
+          lunarAnnualDates: [],
+          lunarAnnualStart: null,
+          lunarAnnualEnd: null,
+          themeColor: null,
+        }
+      : null;
+  }
+
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const text = typeof item.text === "string" ? item.text.trim() : "";
+  if (!text) {
+    return null;
+  }
+
+  const level = item.level === "success" || item.level === "warn" ? item.level : "info";
+  const normalizedType = normalizeNoticeType(item.type);
+  const startAtMs = parseDateTime(item.startAt);
+  const endAtMs = parseDateTime(item.endAt);
+  const themeColor = normalizeHexColor(item.themeColor);
+
+  const annualDates = [];
+  if (typeof item.annualDate === "string") {
+    const parsed = parseMonthDay(item.annualDate);
+    if (parsed) {
+      annualDates.push(parsed);
+    }
+  }
+  if (Array.isArray(item.annualDates)) {
+    for (const value of item.annualDates) {
+      const parsed = parseMonthDay(value);
+      if (parsed) {
+        annualDates.push(parsed);
+      }
+    }
+  }
+
+  const uniqueAnnualDates = [];
+  const seen = new Set();
+  for (const dateItem of annualDates) {
+    if (seen.has(dateItem.key)) {
+      continue;
+    }
+    seen.add(dateItem.key);
+    uniqueAnnualDates.push(dateItem);
+  }
+
+  let annualStart = parseMonthDay(item.annualStart);
+  let annualEnd = parseMonthDay(item.annualEnd);
+  if (annualStart && !annualEnd) {
+    annualEnd = annualStart;
+  } else if (!annualStart && annualEnd) {
+    annualStart = annualEnd;
+  }
+
+  const lunarAnnualDates = [];
+  if (typeof item.lunarAnnualDate === "string") {
+    const parsed = parseLunarMonthDay(item.lunarAnnualDate);
+    if (parsed) {
+      lunarAnnualDates.push(parsed);
+    }
+  }
+  if (Array.isArray(item.lunarAnnualDates)) {
+    for (const value of item.lunarAnnualDates) {
+      const parsed = parseLunarMonthDay(value);
+      if (parsed) {
+        lunarAnnualDates.push(parsed);
+      }
+    }
+  }
+
+  const uniqueLunarAnnualDates = [];
+  const lunarSeen = new Set();
+  for (const dateItem of lunarAnnualDates) {
+    if (lunarSeen.has(dateItem.key)) {
+      continue;
+    }
+    lunarSeen.add(dateItem.key);
+    uniqueLunarAnnualDates.push(dateItem);
+  }
+
+  let lunarAnnualStart = parseLunarMonthDay(item.lunarAnnualStart);
+  let lunarAnnualEnd = parseLunarMonthDay(item.lunarAnnualEnd);
+  if (lunarAnnualStart && !lunarAnnualEnd) {
+    lunarAnnualEnd = lunarAnnualStart;
+  } else if (!lunarAnnualStart && lunarAnnualEnd) {
+    lunarAnnualStart = lunarAnnualEnd;
+  }
+
+  return {
+    text,
+    level,
+    typeKey: normalizedType.key,
+    typeLabel: normalizedType.label,
+    startAtMs,
+    endAtMs,
+    annualDates: uniqueAnnualDates,
+    annualStart,
+    annualEnd,
+    lunarAnnualDates: uniqueLunarAnnualDates,
+    lunarAnnualStart,
+    lunarAnnualEnd,
+    themeColor,
+  };
+}
+
+function syncActiveNotices(now = new Date()) {
+  const filtered = noticeConfigItems.filter((item) => isNoticeActive(item, now));
+  activeNoticeItems = filtered.length
+    ? filtered
+    : [
+        {
+          text: "当前暂无有效通知。",
+          level: "info",
+          typeKey: "system",
+          typeLabel: NOTICE_TYPE_MAP.system,
+          lunarAnnualDates: [],
+          lunarAnnualStart: null,
+          lunarAnnualEnd: null,
+          themeColor: null,
+        },
+      ];
+  noticeIndex = activeNoticeItems.length ? noticeIndex % activeNoticeItems.length : 0;
+}
+
+function isNoticeActive(item, now) {
+  const nowMs = now.getTime();
+
+  if (item.startAtMs !== null && nowMs < item.startAtMs) {
+    return false;
+  }
+  if (item.endAtMs !== null && nowMs > item.endAtMs) {
+    return false;
+  }
+
+  const hasAnnualDates = Array.isArray(item.annualDates) && item.annualDates.length > 0;
+  const hasAnnualRange = Boolean(item.annualStart && item.annualEnd);
+  const hasLunarAnnualDates = Array.isArray(item.lunarAnnualDates) && item.lunarAnnualDates.length > 0;
+  const hasLunarAnnualRange = Boolean(item.lunarAnnualStart && item.lunarAnnualEnd);
+
+  if (!hasAnnualDates && !hasAnnualRange && !hasLunarAnnualDates && !hasLunarAnnualRange) {
+    return true;
+  }
+
+  let matched = false;
+  const monthDayKey = toMonthDayKey(now.getMonth() + 1, now.getDate());
+  if (hasAnnualDates && item.annualDates.some((annualDate) => annualDate.key === monthDayKey)) {
+    matched = true;
+  }
+
+  if (hasAnnualRange && isMonthDayInRange(monthDayKey, item.annualStart.key, item.annualEnd.key)) {
+    matched = true;
+  }
+
+  const lunarMonthDayKey = getLunarMonthDayKey(now);
+  if (lunarMonthDayKey !== null) {
+    if (hasLunarAnnualDates && item.lunarAnnualDates.some((annualDate) => annualDate.key === lunarMonthDayKey)) {
+      matched = true;
+    }
+
+    if (
+      hasLunarAnnualRange &&
+      isMonthDayInRange(lunarMonthDayKey, item.lunarAnnualStart.key, item.lunarAnnualEnd.key)
+    ) {
+      matched = true;
+    }
+  }
+
+  return matched;
+}
+
+function renderNotice() {
+  if (!noticeTextEl || !noticeBarEl || !noticeTagEl) {
+    return;
+  }
+
+  const current = activeNoticeItems[noticeIndex] ?? {
+    text: "当前暂无通知。",
+    level: "info",
+    typeKey: "system",
+    typeLabel: NOTICE_TYPE_MAP.system,
+    themeColor: null,
+  };
+  noticeTextEl.textContent = current.text;
+  noticeTagEl.textContent = current.typeLabel ?? NOTICE_TYPE_MAP.custom;
+  noticeBarEl.dataset.level = current.level ?? "info";
+  noticeBarEl.dataset.noticeType = current.typeKey ?? "custom";
+  applyNoticeTheme(current.themeColor ?? null);
+}
+
+function startNoticeTimers() {
+  if (noticeRefreshHandle) {
+    clearInterval(noticeRefreshHandle);
+  }
+  if (noticeRotateHandle) {
+    clearInterval(noticeRotateHandle);
+  }
+
+  noticeRefreshHandle = setInterval(() => {
+    void refreshNoticeConfig();
+  }, noticeRefreshSec * 1000);
+
+  noticeRotateHandle = setInterval(() => {
+    syncActiveNotices();
+    if (activeNoticeItems.length > 1) {
+      noticeIndex = (noticeIndex + 1) % activeNoticeItems.length;
+    } else {
+      noticeIndex = 0;
+    }
+    renderNotice();
+  }, noticeRotateSec * 1000);
+}
+
+function applyNoticeTheme(themeColor) {
+  if (!noticeBarEl || !noticeTextEl || !noticeTagEl) {
+    return;
+  }
+
+  if (!themeColor) {
+    noticeBarEl.dataset.customTheme = "false";
+    noticeBarEl.style.removeProperty("--notice-theme-border");
+    noticeBarEl.style.removeProperty("--notice-theme-bg-1");
+    noticeBarEl.style.removeProperty("--notice-theme-bg-2");
+    noticeBarEl.style.removeProperty("--notice-theme-text");
+    noticeBarEl.style.removeProperty("--notice-theme-tag-border");
+    noticeBarEl.style.removeProperty("--notice-theme-tag-text");
+    return;
+  }
+
+  const palette = buildNoticeTheme(themeColor);
+  if (!palette) {
+    noticeBarEl.dataset.customTheme = "false";
+    return;
+  }
+
+  noticeBarEl.dataset.customTheme = "true";
+  noticeBarEl.style.setProperty("--notice-theme-border", palette.border);
+  noticeBarEl.style.setProperty("--notice-theme-bg-1", palette.bg1);
+  noticeBarEl.style.setProperty("--notice-theme-bg-2", palette.bg2);
+  noticeBarEl.style.setProperty("--notice-theme-text", palette.text);
+  noticeBarEl.style.setProperty("--notice-theme-tag-border", palette.tagBorder);
+  noticeBarEl.style.setProperty("--notice-theme-tag-text", palette.tagText);
 }
 
 function initControls() {
@@ -796,6 +1216,242 @@ function parseImageIndex(path) {
   }
   const value = Number.parseInt(match[1], 10);
   return Number.isFinite(value) ? value : null;
+}
+
+function parseDateTime(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function normalizeVersion(value) {
+  if (typeof value !== "string") {
+    return APP_VERSION_DEFAULT;
+  }
+
+  const text = value.trim();
+  if (!text) {
+    return APP_VERSION_DEFAULT;
+  }
+
+  const withoutV = text.replace(/^[vV]/, "");
+  const valid = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(withoutV);
+  return valid ? withoutV : APP_VERSION_DEFAULT;
+}
+
+function normalizePlainText(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const text = value.trim();
+  return text || fallback;
+}
+
+function normalizeDateString(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const text = value.trim();
+  if (!text) {
+    return fallback;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : fallback;
+}
+
+function normalizeNoticeType(value) {
+  if (typeof value !== "string") {
+    return { key: "custom", label: NOTICE_TYPE_MAP.custom };
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "festival" || normalized === "节日") {
+    return { key: "festival", label: NOTICE_TYPE_MAP.festival };
+  }
+  if (normalized === "birthday" || normalized === "生日") {
+    return { key: "birthday", label: NOTICE_TYPE_MAP.birthday };
+  }
+  if (normalized === "system" || normalized === "系统") {
+    return { key: "system", label: NOTICE_TYPE_MAP.system };
+  }
+  if (normalized === "custom" || normalized === "custom_notice" || normalized === "自定义通知" || normalized === "自定义") {
+    return { key: "custom", label: NOTICE_TYPE_MAP.custom };
+  }
+
+  return { key: "custom", label: NOTICE_TYPE_MAP.custom };
+}
+
+function createLunarNumericFormatter() {
+  try {
+    return new Intl.DateTimeFormat("zh-Hans-CN-u-ca-chinese", { month: "numeric", day: "numeric" });
+  } catch (error) {
+    return null;
+  }
+}
+
+function getLunarMonthDayKey(date) {
+  if (!LUNAR_NUMERIC_FORMAT) {
+    return null;
+  }
+
+  try {
+    const parts = LUNAR_NUMERIC_FORMAT.formatToParts(date);
+    const monthText = parts.find((part) => part.type === "month")?.value ?? "";
+    const dayText = parts.find((part) => part.type === "day")?.value ?? "";
+    const month = Number.parseInt(monthText, 10);
+    const day = Number.parseInt(dayText, 10);
+
+    if (!Number.isFinite(month) || !Number.isFinite(day) || month < 1 || month > 12 || day < 1 || day > 30) {
+      return null;
+    }
+
+    return toMonthDayKey(month, day);
+  } catch (error) {
+    return null;
+  }
+}
+
+function normalizeHexColor(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const hex = value.trim();
+  const shortMatch = /^#([0-9a-fA-F]{3})$/.exec(hex);
+  if (shortMatch) {
+    const [r, g, b] = shortMatch[1].split("");
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+
+  const longMatch = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!longMatch) {
+    return null;
+  }
+  return `#${longMatch[1].toUpperCase()}`;
+}
+
+function buildNoticeTheme(themeColor) {
+  const normalized = normalizeHexColor(themeColor);
+  if (!normalized) {
+    return null;
+  }
+
+  const rgb = hexToRgb(normalized);
+  if (!rgb) {
+    return null;
+  }
+
+  return {
+    border: normalized,
+    bg1: rgbToHex(blendWithWhite(rgb, 0.92)),
+    bg2: rgbToHex(blendWithWhite(rgb, 0.84)),
+    text: rgbToHex(blendWithBlack(rgb, 0.45)),
+    tagBorder: rgbToHex(blendWithWhite(rgb, 0.45)),
+    tagText: rgbToHex(blendWithBlack(rgb, 0.38)),
+  };
+}
+
+function hexToRgb(hexColor) {
+  const normalized = normalizeHexColor(hexColor);
+  if (!normalized) {
+    return null;
+  }
+
+  const value = normalized.slice(1);
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex(rgb) {
+  const toHex = (value) => clampInteger(value, 0, 255, 0).toString(16).padStart(2, "0");
+  return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`.toUpperCase();
+}
+
+function blendWithWhite(rgb, whiteWeight) {
+  const w = clamp(whiteWeight, 0, 1);
+  return {
+    r: Math.round(rgb.r * (1 - w) + 255 * w),
+    g: Math.round(rgb.g * (1 - w) + 255 * w),
+    b: Math.round(rgb.b * (1 - w) + 255 * w),
+  };
+}
+
+function blendWithBlack(rgb, blackWeight) {
+  const k = clamp(blackWeight, 0, 1);
+  return {
+    r: Math.round(rgb.r * (1 - k)),
+    g: Math.round(rgb.g * (1 - k)),
+    b: Math.round(rgb.b * (1 - k)),
+  };
+}
+
+function parseMonthDay(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const match = value.trim().match(/^(\d{1,2})-(\d{1,2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const month = Number.parseInt(match[1], 10);
+  const day = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(month) || !Number.isFinite(day) || month < 1 || month > 12) {
+    return null;
+  }
+
+  const maxDay = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  if (day < 1 || day > maxDay) {
+    return null;
+  }
+
+  return { month, day, key: toMonthDayKey(month, day) };
+}
+
+function parseLunarMonthDay(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const match = value.trim().match(/^(\d{1,2})-(\d{1,2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const month = Number.parseInt(match[1], 10);
+  const day = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(month) || !Number.isFinite(day) || month < 1 || month > 12 || day < 1 || day > 30) {
+    return null;
+  }
+
+  return { month, day, key: toMonthDayKey(month, day) };
+}
+
+function toMonthDayKey(month, day) {
+  return month * 100 + day;
+}
+
+function isMonthDayInRange(value, start, end) {
+  if (start <= end) {
+    return value >= start && value <= end;
+  }
+  return value >= start || value <= end;
+}
+
+function clampInteger(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  const integer = Math.floor(numeric);
+  return Math.max(min, Math.min(max, integer));
 }
 
 function clamp(value, min, max) {

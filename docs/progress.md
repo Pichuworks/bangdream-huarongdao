@@ -352,3 +352,120 @@
 - 规划功能：
   - 执行首次提交并推送到 `https://github.com/Pichuworks/bangdream-huarongdao.git`。
   - 推送完成后启用 GitHub Pages 并验证访问地址。
+
+### Step 34（2026-02-13）
+- 已完成功能：
+  - 新增界面底部专用通知栏（`index.html` + `src/ui/styles.css`），与游戏状态区分离。
+  - 新增通知配置文件 `data/notice-config.json`，支持通过配置维护通知内容。
+  - `src/main.js` 接入通知逻辑：
+    - 启动时读取通知配置；
+    - 按 `refreshIntervalSec` 定时重新拉取配置；
+    - 多条通知按 `rotateIntervalSec` 轮播展示；
+    - 配置读取失败时保底显示告警通知，避免空栏。
+  - 文档同步：`README.md` 增加通知栏配置说明。
+- 规划功能：
+  - 可选增加“通知点击跳转链接”字段（如活动页/更新日志）。
+  - 可选增加“生效时间窗口”（开始/结束时间）以支持限时通知。
+
+### Step 35（2026-02-13）
+- 已完成功能：
+  - 通知配置升级：每条通知支持开始/结束时间窗口（`startAt` / `endAt`）。
+  - 支持每年特定日期与日期区间规则：
+    - `annualDate` / `annualDates`（`MM-DD`）；
+    - `annualStart` / `annualEnd`（`MM-DD`，支持跨年区间）。
+  - 通知筛选逻辑更新：
+    - 先按绝对时间窗口过滤；
+    - 再按年度日期规则过滤；
+    - 无命中时显示“当前暂无有效通知”保底文案。
+  - 文档与示例同步：
+    - `README.md` 新增时间字段说明；
+    - `data/notice-config.json` 新增含年度日期规则的示例。
+- 规划功能：
+  - 可选支持通知链接字段（点击跳转到公告/活动页）。
+  - 可选支持按优先级置顶（重要通知不轮播或延长展示时长）。
+
+### Step 36（2026-02-13）
+- 已完成功能：
+  - 通知配置分层：
+    - 将原通知配置迁移为 `data/notice-config.demo.json`（保留示例与历史规则）；
+    - 生成生产配置 `data/notice-config.json`。
+  - 生产配置新增首条通知：
+    - 文案：`【祥子小姐生日快乐！情人节出生的大小姐值得被爱！】`
+    - 生效规则：每年 `02-13` 到 `02-15`（`annualStart` / `annualEnd`）。
+    - 主题色：`#7799CC`。
+  - 通知系统新增每条通知主题色能力：
+    - 配置字段 `themeColor`（支持 `#RRGGBB` / `#RGB`）；
+    - 前端动态应用边框、背景、标签与文字配色；
+    - 与现有 `level` 样式兼容，不设置 `themeColor` 时沿用默认主题。
+  - 文档更新：`README.md` 增加 `themeColor` 字段与 demo/prod 配置说明。
+- 规划功能：
+  - 可选增加通知优先级字段，支持节日通知置顶。
+  - 可选增加“只展示一次”机制（按浏览器本地存储记忆已读状态）。
+
+### Step 37（2026-02-13）
+- 已完成功能：
+  - 通知系统新增中国农历重复事件支持：
+    - `lunarAnnualDate` / `lunarAnnualDates`（农历固定日）；
+    - `lunarAnnualStart` / `lunarAnnualEnd`（农历区间，支持跨年）。
+  - 农历判断实现为浏览器 `Intl` 中国农历日历（无需新增依赖），与原有公历规则并存。
+  - 重复事件轮换默认值调整为 `5s`（`NOTICE_ROTATE_SEC_DEFAULT=5`）。
+  - 生产通知配置更新（`data/notice-config.json`）：
+    - 每年 02-13 到 02-15：`【祥子小姐生日快乐！情人节出生的大小姐值得被爱！】`，主题色 `#7799CC`；
+    - 每年农历腊月 20 到正月初七：`祝大家春节玉快，阖家欢洛！`，火红主题色 `#E60012`；
+    - 每年 02-22：`乐奈生日快乐！猫之日快乐！今天要吃抹茶芭菲！`，主题色 `#77DD77`。
+  - 文档更新：`README.md` 增加农历通知字段说明与示例。
+- 规划功能：
+  - 可选增加通知优先级字段（春节/生日等节日通知优先展示）。
+  - 可选增加“只展示一次”与“已读态”能力，避免重复打扰。
+
+### Step 38（2026-02-13）
+- 已完成功能：
+  - 通知轮换默认间隔调整为 `10s`（代码默认值与配置示例同步）。
+  - 通知新增 `type` 字段并内置默认类型：
+    - `节日`、`生日`、`系统`、`自定义通知`。
+  - 通知栏标签由静态“通知”改为动态显示当前通知类型（例如“生日”“节日”）。
+  - 生产通知配置与 demo 通知配置同步升级：
+    - 全部生日通知改为 `【🎂 日期】内容` 格式；
+    - 生产配置保留春节（农历）与生日主题色规则；
+    - demo 配置补全四类默认类型示例。
+  - 文档更新：`README.md` 增加 `type` 字段说明、生日文案格式规范和 10 秒轮换说明。
+- 规划功能：
+  - 可选增加类型专属样式（如生日/节日图标或边框特效）。
+  - 可选增加类型筛选开关（仅展示系统通知/节日通知等）。
+
+### Step 39（2026-02-13）
+- 已完成功能：
+  - 新增应用配置文件 `data/app-config.json`，集中维护版本号与许可证标识：
+    - `version: 0.0.2`
+    - `license: GPL-2.0-only`
+  - 页面标题上方新增版本号显示（`index.html` + `src/ui/styles.css`）：
+    - 启动时从 `data/app-config.json` 读取版本；
+    - 前端展示格式统一为 `v{version}`（当前显示 `v0.0.2`）；
+    - 配置缺失或非法时回退 `v0.0.0`。
+  - 新增开源协议文件 `LICENSE`（GPL v2 全文），协议落地为 GPL2。
+  - 文档更新：
+    - `README.md` 增加 `data/app-config.json` 说明；
+    - `README.md` 新增 License 章节，明确 `GPL-2.0-only`；
+    - `README.md` 项目结构补充 app/notice 配置文件。
+- 规划功能：
+  - 可选增加“构建时间/commit hash”显示（同样走 `app-config`）。
+  - 可选增加“版本点击展开更新日志”入口。
+
+### Step 40（2026-02-13）
+- 已完成功能：
+  - 页面最下方新增信息栏（`index.html` + `src/ui/styles.css`），展示：
+    - `Developed by ...`
+    - `Powered by ...`
+    - `Last update: ...`
+  - 底部信息全部接入 `data/app-config.json` 的 `footer` 配置，并在启动时加载渲染。
+  - `Powered by` 文案格式升级为：
+    - `Powered by {model} (reasoning {level}, summaries {mode})`
+  - 当前配置已按需求设置为：
+    - `model: gpt-5.3-codex`
+    - `reasoning: high`
+    - `summaries: auto`
+    - 显示效果：`Powered by gpt-5.3-codex (reasoning high, summaries auto)`。
+  - `README.md` 同步补充 `app-config.footer` 字段说明（developer/model/reasoning/summaries/lastUpdated）。
+- 规划功能：
+  - 可选增加页脚链接（如 GitHub 仓库、更新日志）。
+  - 可选增加“自动从 git commit 生成 lastUpdated”的发布脚本。
