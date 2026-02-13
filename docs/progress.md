@@ -469,3 +469,18 @@
 - 规划功能：
   - 可选增加页脚链接（如 GitHub 仓库、更新日志）。
   - 可选增加“自动从 git commit 生成 lastUpdated”的发布脚本。
+
+### Step 41（2026-02-13）
+- 已完成功能：
+  - 增加 GitHub Pages 防缓存加载机制（`index.html`）：
+    - 移除静态 `src/ui/styles.css` 与 `src/main.js` 直接引用；
+    - 启动时先读取 `data/app-config.json`（`cache: no-store`）；
+    - 按 `version + footer.lastUpdated` 拼接 `?v=` 参数后动态注入 CSS/JS。
+  - 缓存兜底：
+    - 当配置读取失败时，回退为时间戳参数，确保页面仍可加载最新资源。
+  - 文档同步：
+    - `README.md` 补充“version 参与防缓存参数”的说明；
+    - 增加发布建议：发布时更新 `version` 或 `lastUpdated` 以触发资源换版本。
+- 规划功能：
+  - 可选增加 `assetVersion` 独立字段（与展示版本解耦）。
+  - 可选增加“部署后自动写入版本号”的 GitHub Actions。

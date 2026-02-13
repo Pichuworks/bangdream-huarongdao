@@ -4,7 +4,44 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BanG Dream! 华容道</title>
-    <link rel="stylesheet" href="src/ui/styles.css" />
+    <script>
+      (() => {
+        const APP_CONFIG_URL = "data/app-config.json";
+        const STYLE_URL = "src/ui/styles.css";
+        const ENTRY_URL = "src/main.js";
+
+        const sanitizeToken = (value) =>
+          String(value ?? "")
+            .trim()
+            .replace(/[^0-9A-Za-z._-]/g, "-");
+
+        const appendAssets = (stamp) => {
+          const token = stamp || Date.now().toString(36);
+
+          const style = document.createElement("link");
+          style.rel = "stylesheet";
+          style.href = `${STYLE_URL}?v=${encodeURIComponent(token)}`;
+          document.head.append(style);
+
+          const entry = document.createElement("script");
+          entry.type = "module";
+          entry.src = `${ENTRY_URL}?v=${encodeURIComponent(token)}`;
+          document.head.append(entry);
+        };
+
+        fetch(APP_CONFIG_URL, { cache: "no-store" })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((config) => {
+            const version = sanitizeToken(config?.version);
+            const updated = sanitizeToken(config?.footer?.lastUpdated);
+            const stamp = [version, updated].filter(Boolean).join("-");
+            appendAssets(stamp);
+          })
+          .catch(() => {
+            appendAssets("");
+          });
+      })();
+    </script>
   </head>
   <body>
     <main class="app">
@@ -67,7 +104,5 @@
         <span id="footerUpdated">Last update: 2026-02-13</span>
       </footer>
     </main>
-
-    <script type="module" src="src/main.js"></script>
   </body>
 </html>

@@ -56,6 +56,7 @@ npx serve . -l 5173
 文件：`data/app-config.json`
 
 - `version`：页面标题上方显示的版本号（例如 `0.0.2`）。
+  - 同时作为静态资源防缓存标记的一部分（用于 `src/main.js` 与 `src/ui/styles.css` 的 `?v=` 参数）。
 - `license`：项目许可证标识（当前 `GPL-2.0-only`）。
 - `footer`：页面最下方信息栏配置。
   - `developer`：开发者名称。
@@ -78,6 +79,9 @@ npx serve . -l 5173
   }
 }
 ```
+
+发布建议：
+- 每次发布后请更新 `version` 或 `footer.lastUpdated`，这样页面会自动使用新的静态资源参数，减少 GitHub Pages 缓存导致的旧页面问题。
 
 ### 2) 角色名映射
 文件：`data/image-role-map.json`
