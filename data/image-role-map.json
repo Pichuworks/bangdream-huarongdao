@@ -1,0 +1,35 @@
+{
+  "showRoleNamesDefault": false,
+  "roles": {
+    "img/1.JPG": {
+      "roleName": "米歇尔"
+    },
+    "img/2.JPG": {
+      "roleName": "山吹沙绫"
+    },
+    "img/3.JPG": {
+      "roleName": "一个纸箱"
+    },
+    "img/4.JPG": {
+      "roleName": "花园多惠"
+    },
+    "img/5.JPG": {
+      "roleName": "凑友希那"
+    },
+    "img/6.JPG": {
+      "roleName": "祐天寺若麦"
+    },
+    "img/7.JPG": {
+      "roleName": "青叶摩卡"
+    },
+    "img/8.JPG": {
+      "roleName": "市谷有咲"
+    },
+    "img/9.JPG": {
+      "roleName": "二叶筑紫"
+    },
+    "img/10.JPG": {
+      "roleName": "若宫伊芙"
+    }
+  }
+}

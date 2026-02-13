@@ -1,0 +1,16 @@
+{
+  "layoutName": "role_size_locked",
+  "note": "按角色尺寸关系固定：米歇尔2x2，友希那2x1，若麦/摩卡/有咲/伊芙为1x2，其余1x1。",
+  "pieceImage": {
+    "caocao": "img/1.JPG",
+    "guanyu": "img/5.JPG",
+    "zhangfei": "img/6.JPG",
+    "zhaoyun": "img/7.JPG",
+    "machao": "img/8.JPG",
+    "huangzhong": "img/10.JPG",
+    "soldier1": "img/2.JPG",
+    "soldier2": "img/3.JPG",
+    "soldier3": "img/4.JPG",
+    "soldier4": "img/9.JPG"
+  }
+}

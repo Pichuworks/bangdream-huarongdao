@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BanG Dream! 华容道</title>
+    <link rel="stylesheet" href="src/ui/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1>BanG Dream! 华容道</h1>
+          <p id="goalText">目标：将目标角色移动到底部中间出口</p>
+        </div>
+        <div class="stats">
+          <span>步数 <strong id="steps">0</strong></span>
+          <span>用时 <strong id="timer">00:00</strong></span>
+        </div>
+      </header>
+
+      <section class="controls">
+        <div class="controls-row controls-main">
+          <label for="targetChar">需要移出的角色</label>
+          <select id="targetChar"></select>
+          <label for="targetMode">目标位模式</label>
+          <select id="targetMode">
+            <option value="origin">原位目标</option>
+            <option value="swap_michelle">与米歇尔换位（保留块大小）</option>
+          </select>
+          <label for="fitMode">棋盘拟合</label>
+          <select id="fitMode">
+            <option value="balanced">自然拟合</option>
+            <option value="strict">严格比例</option>
+          </select>
+          <label class="inline-check" for="showNamesToggle">
+            <input id="showNamesToggle" type="checkbox" />
+            显示角色名
+          </label>
+        </div>
+        <div class="controls-row controls-actions">
+          <button id="restartBtn" type="button">重新开始</button>
+          <button id="resetTimerBtn" type="button">重置计时</button>
+          <button id="autoSolveBtn" type="button">自动求解</button>
+          <span id="solveStatus" class="solve-status" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board" aria-label="华容道棋盘"></div>
+      </section>
+
+      <section id="winPanel" class="win-panel hidden" aria-live="polite">
+        <h2>通关</h2>
+        <p id="winText">目标角色已到出口。</p>
+      </section>
+    </main>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
